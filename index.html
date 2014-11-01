@@ -1,0 +1,53 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>InvEarth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="assets/reset.css" type="text/css" rel="stylesheet" media="all"/>
+  <style>
+    #statusBar {
+      font-family: Arial;
+      font-size: large;
+      background-color: darkblue;
+      color: white;
+      padding: 5px 10px;
+    }
+    #canvas {
+      background-color: darkblue;
+      padding: 0 10px 10px 10px;
+    }
+    body {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="statusBar">
+    Score: <span id="score"></span>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div>Press space to fire, left and right cursor/arrows to move.</div>
+  <img style="display: none;" id="sheet1" data-src="assets/sheet1.png"/>
+  <img style="display: none;" id="explosion" data-src="assets/explosion.png"/>
+  <audio data-src="assets/fire.wav" id="audio-fire" type="audio/wav"/>
+  <audio data-src="assets/explosion6.wav" id="audio-explosion-6" type="audio/wav"/>
+  <audio data-src="assets/blip1.wav" id="audio-blip-1" type="audio/wav"/>
+  <audio data-src="assets/blip2.wav" id="audio-blip-2" type="audio/wav"/>
+  <audio data-src="assets/death.wav" id="audio-death" type="audio/wav"/>
+  <audio data-src="assets/won.wav" id="audio-won" type="audio/wav"/>
+  <script type="text/javascript" src="lib/underscore-min-1.5.1.js"></script>
+  <script type="text/javascript" src="js/pg.js"></script>
+  <script type="text/javascript" src="js/pub_sub.js"></script>
+  <script type="text/javascript" src="js/sheet.js"></script>
+  <script type="text/javascript" src="js/two_dim.js"></script>
+  <script type="text/javascript" src="js/alien.js"></script>
+  <script type="text/javascript" src="js/swarm.js"></script>
+  <script type="text/javascript" src="js/turret.js"></script>
+  <script type="text/javascript" src="js/bullet.js"></script>
+  <script type="text/javascript" src="js/key_handler.js"></script>
+  <script type="text/javascript" src="js/touch_handler.js"></script>
+  <script type="text/javascript" src="js/pool.js"></script>
+  <script type="text/javascript" src="js/game.js"></script>
+  <script type="text/javascript" src="js/boot.js"></script>
+</body>
+</html>

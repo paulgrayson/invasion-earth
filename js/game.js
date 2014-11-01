@@ -19,14 +19,15 @@ var Game = function(width, height,
   this.blip2Au = blip2Au;
   this.deathAu = deathAu;
   this.wonAu = wonAu;
-  this.bulletPool = new Pool(50);
+  this.bulletPool = new Pool(100);
 };
 
 Game.prototype.warmBulletPool = function() {
-  for(var i = 0; i < 20; i++) {
-    var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
-    this.bulletPool.give(bullet);
-  }
+// TODO reenable warming bullet pool
+//  for(var i = 0; i < 20; i++) {
+//    var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
+//    this.bulletPool.give(bullet);
+//  }
 };
 
 Game.prototype.start = function() {
@@ -56,17 +57,16 @@ Game.prototype.start = function() {
     self.swarm.anyBulletsHit(self.ctx, self.bullets, self.turret);
     self.bullets = self.pruneDeadBullets(self.bullets);
   };
-  self.createTicker(function() {
-    self.swarm.update(self.ctx);
-  }, turretUpdate, bulletsUpdate);
+  var swarmUpdate = function() {self.swarm.update(self.ctx)};
+  self.createTicker(swarmUpdate, turretUpdate, bulletsUpdate);
 };
 
-Game.prototype.createTicker = function(aliensUpdate, turretUpdate, bulletsUpdate) {
+Game.prototype.createTicker = function(swarmUpdate, turretUpdate, bulletsUpdate) {
   var count = 0;
   var self = this;
   self.ticksSinceLastFire = 0;
   var animateInterval = setInterval(function() {
-    aliensUpdate();
+    swarmUpdate();
     turretUpdate();
     bulletsUpdate();
     count += 1;
@@ -193,7 +193,7 @@ Game.prototype.createTurret = function() {
 };
 
 Game.prototype.fire = function(turret) {
-  if(this.ticksSinceLastFire >= 3) {
+  if(this.ticksSinceLastFire >= 6) {
     var bullet = this.createBullet(turret);
     this.bullets.push(bullet);
     this.fireAu.play();
@@ -203,10 +203,11 @@ Game.prototype.fire = function(turret) {
 
 Game.prototype.createBullet = function(turret) {
   var self = this;
-  var bullet = this.bulletPool.take(function() {
-    console.log("create bullet");
-    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
-  });
+// TODO fix problem with pool occassionally resulting in no bullet  
+//  var bullet = this.bulletPool.take(function() {
+//    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
+//  });
+  var bullet = new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
   bullet.setCoord(turret.x + 14, turret.y-4);
   bullet.dy = -8;
   return bullet;

@@ -5,6 +5,6 @@ All your Earth belong to us
 
 Just having some fun with JS and canvas..
 
-Enjoy!
+[Enjoy it here!](http://htmlpreview.github.com/?https://github.com/paulgrayson/invasion-earth/master/index.html)
 
 Paul

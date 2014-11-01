@@ -15,6 +15,15 @@ var Swarm = function(canvas, sheet, blip1Au, blip2Au, pubSub) {
   this.blipAus = [this.blip1Au, this.blip2Au];
   _.each(this.blipAus, function(au) { au.volume = 0.2 });
   this.count = 0;
+  this.bulletPool = new Pool(100);
+  this.warmBulletPool();
+};
+
+Swarm.prototype.warmBulletPool = function() {
+  for(var i = 0; i < 50; i++) {
+    var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
+    this.bulletPool.give(bullet);
+  }
 };
 
 Swarm.prototype.createAliens = function() {
@@ -88,7 +97,10 @@ Swarm.prototype.update = function(ctx) {
 };
 
 Swarm.prototype.createBullet = function(alien) {
-  var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
+  var self = this;
+  var bullet = this.bulletPool.take(function() {
+    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
+  });
   var bounds = alien.bounds();
   bullet.setCoord(bounds.x1 + 14, bounds.y2+4);
   bullet.dy = 6 + Math.floor(this.row / 3);
@@ -130,6 +142,7 @@ Swarm.prototype.pruneDeadBullets = function(bullets) {
   var self = this;
   return _.reject(bullets, function(bullet) {
     var off = self.isCompletelyOffScreen(self.canvas, bullet.bounds());
+    if(off) self.bulletPool.give(bullet);
     return off;
   });
 };

@@ -19,10 +19,19 @@ var Game = function(width, height,
   this.blip2Au = blip2Au;
   this.deathAu = deathAu;
   this.wonAu = wonAu;
+  this.bulletPool = new Pool(50);
+};
+
+Game.prototype.warmBulletPool = function() {
+  for(var i = 0; i < 20; i++) {
+    var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
+    this.bulletPool.give(bullet);
+  }
 };
 
 Game.prototype.start = function() {
   this.bullets = [];
+  this.warmBulletPool();
   this.turret = null;
   this.swarm = null;
   this.score = 0;
@@ -55,83 +64,107 @@ Game.prototype.start = function() {
 Game.prototype.createTicker = function(aliensUpdate, turretUpdate, bulletsUpdate) {
   var count = 0;
   var self = this;
+  self.ticksSinceLastFire = 0;
   var animateInterval = setInterval(function() {
     aliensUpdate();
     turretUpdate();
     bulletsUpdate();
     count += 1;
-    if(self.swarm.bounds().y2 >= self.turret.bounds().y1) {
+    self.ticksSinceLastFire += 1;
+    if(self.hasSwarmReachedTurret()) {
       self.gameOver = true;
       self.didWin = false;
     }
     if(self.gameOver) {
-      clearInterval(animateInterval);
-      self.gameFinished();
-      self.pubSub.unsubscribeAll('swarm');
-      self.pubSub.unsubscribeAll('bullets');
-      self.pubSub.unsubscribeAll('aliens');
-      self.pubSub.unsubscribeAll('turret');
-      if(self.touchable) {
-        self.touchHandler.onceTouchEnd(function(e) {
-          self.touchHandler.onceTouchStart(function(e) {
-            self.start.call(self);
-          });
-        });
-      }
-      else {
-        self.keyHandler.onceOnDown(83, function(e) {
-          if(e.keyCode == 83) self.start.call(self);
-        });
-      }
+      self.stopGame(animateInterval);
+      self.offerStartNewGame();
     }
   }, 33);
 };
 
-Game.prototype.gameFinished = function() {
+Game.prototype.offerStartNewGame = function() {
   var self = this;
-  if(self.didWin) {
-    self.wonAu.play();
+  if(self.touchable) {
+    self.touchHandler.onceTouchEnd(function(e) {
+      self.touchHandler.onceTouchStart(function(e) {
+        self.start.call(self);
+      });
+    });
   }
   else {
-    self.deathAu.play();
+    self.keyHandler.onceOnDown(83, function(e) {
+      if(e.keyCode == 83) self.start.call(self);
+    });
   }
-  _.each(self.bullets, function(bullet) { bullet.clear(self.ctx) });
-  var i = 0.2;
+};
+
+Game.prototype.stopGame = function(animateInterval) {
+  clearInterval(animateInterval);
+  this.gameFinished();
+  this.pubSub.unsubscribeAll('swarm');
+  this.pubSub.unsubscribeAll('bullets');
+  this.pubSub.unsubscribeAll('aliens');
+  this.pubSub.unsubscribeAll('turret');
+};
+
+Game.prototype.hasSwarmReachedTurret = function() {
+  return this.swarm.bounds().y2 >= this.turret.bounds().y1
+};
+
+Game.prototype.gameFinished = function() {
+  var self = this;
+  if(this.didWin) {
+    this.wonAu.play();
+  }
+  else {
+    this.deathAu.play();
+  }
+  _.each(this.bullets, function(bullet) { bullet.clear(self.ctx) });
+  this.showAnimateUserWonLost();
+};
+
+Game.prototype.showAnimateUserWonLost = function() {
+  var self = this;
+  var scale = 0.2;
   var bckImgData = self.ctx.getImageData(0, 0, canvas.width, canvas.height); 
   var interval = setInterval(function() {
     self.ctx.putImageData(bckImgData, 0, 0);
-    self.ctx.fillStyle = self.didWin ? "#3d4" : "f33";
-    self.ctx.font = ""+ (68*i) +"pt Impact";
-    var text = "GAME OVER";
-    var width = self.ctx.measureText(text).width;
-    self.ctx.fillText(
-      text,
-      (self.canvas.width-width)*0.5,
-      self.canvas.height*0.4,
-      width
-    );
-    self.ctx.font = ""+ (88*i) +"pt Impact";
-    text = self.didWin ? "WINNER!" : "LOSER!";
-    width = self.ctx.measureText(text).width;
-    self.ctx.fillText(
-      text,
-      (self.canvas.width-width)*0.5,
-      self.canvas.height*0.6,
-      width
-    );
-    text = self.touchable ? "Touch to play again" : "Press 's' to play again";
-    self.ctx.font = ""+ (32*i) +"pt Arial";
-    width = self.ctx.measureText(text).width;
-    self.ctx.fillStyle = "#000";
-    self.ctx.fillText(
-      text,
-      (self.canvas.width-width)*0.5,
-      self.canvas.height*0.9,
-      width
-    );
-    i += 0.1;
-    if(i > 1.0) clearInterval(interval);
+    self.drawWonLost(self.touchable, self.didWin, self.ctx, self.canvas, scale);
+    scale += 0.1;
+    if(scale > 1.0) clearInterval(interval);
   }, 20);
+};
+
+Game.prototype.drawWonLost = function(touchable, didWin, ctx, canvas, scale) {
+  ctx.fillStyle = didWin ? "#3d4" : "#f33";
+  ctx.font = ""+ (68*scale) +"pt Impact";
+  var text = "GAME OVER";
+  var width = ctx.measureText(text).width;
+  ctx.fillText(
+    text,
+    (canvas.width-width)*0.5,
+    canvas.height*0.4,
+    width
+  );
+  ctx.font = ""+ (88*scale) +"pt Impact";
+  text = didWin ? "WINNER!" : "LOSER!";
+  width = ctx.measureText(text).width;
+  ctx.fillText(
+    text,
+    (canvas.width-width)*0.5,
+    canvas.height*0.6,
+    width
+  );
+  text = touchable ? "Touch to play again" : "Press 's' to play again";
+  ctx.font = ""+ (32*scale) +"pt Arial";
+  width = ctx.measureText(text).width;
+  ctx.fillStyle = "#000";
+  ctx.fillText(
+    text,
+    (canvas.width-width)*0.5,
+    canvas.height*0.9,
+    width
+  );
 };
 
 Game.prototype.createTurret = function() {
@@ -160,13 +193,20 @@ Game.prototype.createTurret = function() {
 };
 
 Game.prototype.fire = function(turret) {
-  var bullet = this.createBullet(turret);
-  this.bullets.push(bullet);
-  this.fireAu.play();
+  if(this.ticksSinceLastFire >= 3) {
+    var bullet = this.createBullet(turret);
+    this.bullets.push(bullet);
+    this.fireAu.play();
+    this.ticksSinceLastFire = 0;
+  }
 };
 
 Game.prototype.createBullet = function(turret) {
-  var bullet = new Bullet(this.pubSub, this.sheet.spriteFor("bullet"));
+  var self = this;
+  var bullet = this.bulletPool.take(function() {
+    console.log("create bullet");
+    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
+  });
   bullet.setCoord(turret.x + 14, turret.y-4);
   bullet.dy = -8;
   return bullet;
@@ -181,6 +221,7 @@ Game.prototype.pruneDeadBullets = function(bullets) {
   var self = this;
   return _.reject(bullets, function(bullet) {
     var off = self.isCompletelyOffScreen(self.canvas, bullet.bounds());
+    if(off) self.bulletPool.give(bullet);
     return off;
   });
 };
@@ -209,6 +250,7 @@ Game.prototype.processSwarmEvent = function(payload) {
 Game.prototype.processBulletsEvent = function(payload) {
   if(payload.subject == 'destroyed') {
     this.bullets = _.difference(this.bullets, [payload.bullet]);
+    this.bulletPool.give(payload.bullet);
   }
 };
 

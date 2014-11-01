@@ -19,7 +19,7 @@ var Game = function(width, height,
   this.blip2Au = blip2Au;
   this.deathAu = deathAu;
   this.wonAu = wonAu;
-  this.bulletPool = new Pool(50);
+  this.bulletPool = new Pool(100);
 };
 
 Game.prototype.warmBulletPool = function() {
@@ -31,44 +31,42 @@ Game.prototype.warmBulletPool = function() {
 
 Game.prototype.start = function() {
   this.bullets = [];
-  this.warmBulletPool();
+//  this.warmBulletPool();
   this.turret = null;
   this.swarm = null;
   this.score = 0;
   this.gameOver = false;
   this.didWin = false;
-  this.ctx.fillStyle = "#bbccff";
-  this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-  var self = this;
-  // TODO unsubscribe from previous start?
   this.pubSub.reset();
-  self.pubSub.subscribe('swarm', function(payload) {self.processSwarmEvent.call(self, payload)});
-  self.pubSub.subscribe("bullets", function(payload) {self.processBulletsEvent.call(self, payload)});
-  self.pubSub.subscribe("aliens", function(payload) {self.processAliensEvent.call(self, payload)});
-  self.swarm = new Swarm(self.canvas, self.sheet, self.blip1Au, self.blip2Au, self.pubSub); 
-  self.updateScoreView();
-  var turretUpdate = self.createTurret();
-  self.pubSub.subscribe("turret", function(payload) {self.processTurretEvent.call(self, payload)});
-  var bulletsUpdate = function() {
-    for(var i = 0; i < self.bullets.length; i++) {
-      self.bullets[i].update(self.ctx);
-    }
-    self.swarm.anyBulletsHit(self.ctx, self.bullets, self.turret);
-    self.bullets = self.pruneDeadBullets(self.bullets);
-  };
-  self.createTicker(function() {
-    self.swarm.update(self.ctx);
-  }, turretUpdate, bulletsUpdate);
+  this.subscribeToGameEvents(this.pubSub);
+  this.swarm = new Swarm(this.canvas, this.sheet, this.blip1Au, this.blip2Au, this.pubSub); 
+  this.clearCanvas();
+  this.updateScoreView();
+  this.turret = this.createTurret();
+  this.createTicker(this.swarmUpdate, this.turretUpdate, this.bulletsUpdate);
 };
 
-Game.prototype.createTicker = function(aliensUpdate, turretUpdate, bulletsUpdate) {
+Game.prototype.subscribeToGameEvents = function(pubSub) {
+  var self = this;
+  pubSub.subscribe('swarm', function(payload) {self.processSwarmEvent.call(self, payload)});
+  pubSub.subscribe('bullets', function(payload) {self.processBulletsEvent.call(self, payload)});
+  pubSub.subscribe('aliens', function(payload) {self.processAliensEvent.call(self, payload)});
+  pubSub.subscribe('turret', function(payload) {self.processTurretEvent.call(self, payload)});
+};
+
+Game.prototype.clearCanvas = function() {
+  this.ctx.fillStyle = "#bbccff";
+  this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+};
+
+Game.prototype.createTicker = function(swarmUpdate, turretUpdate, bulletsUpdate) {
   var count = 0;
   var self = this;
   self.ticksSinceLastFire = 0;
   var animateInterval = setInterval(function() {
-    aliensUpdate();
-    turretUpdate();
-    bulletsUpdate();
+    swarmUpdate(self);
+    turretUpdate(self);
+    bulletsUpdate(self);
     count += 1;
     self.ticksSinceLastFire += 1;
     if(self.hasSwarmReachedTurret()) {
@@ -108,7 +106,7 @@ Game.prototype.stopGame = function(animateInterval) {
 };
 
 Game.prototype.hasSwarmReachedTurret = function() {
-  return this.swarm.bounds().y2 >= this.turret.bounds().y1
+  return this.swarm.bounds().y2 >= this.turret.bounds().y1;
 };
 
 Game.prototype.gameFinished = function() {
@@ -167,33 +165,43 @@ Game.prototype.drawWonLost = function(touchable, didWin, ctx, canvas, scale) {
   );
 };
 
-Game.prototype.createTurret = function() {
-  this.turret = new Turret(this.pubSub, this.sheet.spriteFor("turret"));
-  this.turret.setCoord(this.canvas.width/2, this.canvas.height - this.turret.h*2);
-  this.turret.draw(this.ctx);
-  // TODO is window the right thing to set this on?
+Game.prototype.swarmUpdate = function(self) {
+  self.swarm.update(self.ctx)
+};
+
+Game.prototype.bulletsUpdate = function(self) {
+  for(var i = 0; i < self.bullets.length; i++) {
+    self.bullets[i].update(self.ctx);
+  }
+  self.swarm.anyBulletsHit(self.ctx, self.bullets, self.turret);
+  self.bullets = self.pruneDeadBullets(self.bullets);
+};
+
+Game.prototype.turretUpdate = function(self) {
   var dx = 0;
-  var self = this;
   var firing = false;
-  return function() {
-    dx = 0;
-    firing = false;
-    if(self.keyHandler.isDown(32) || self.touchHandler.isTouching()) firing = true;
-    if(self.keyHandler.isDown(37)) dx = -8;
-    if(self.keyHandler.isDown(39)) dx = 8;
-    if(self.touchHandler.isTouching() && self.touchHandler.touchDirectionX() < 0) dx = -4;
-    if(self.touchHandler.isTouching() && self.touchHandler.touchDirectionX() > 0) dx = 4;
-    self.turret.dx = dx;
-    var bounds = self.turret.bounds();
-    if(dx > 0 && bounds.x2 >= self.canvas.width) self.turret.dx = 0;
-    if(dx < 0 && bounds.x1 <= 0) self.turret.dx = 0;
-    self.turret.update(self.ctx);
-    if(firing) self.fire(self.turret);
-  };
+  if(self.keyHandler.isDown(32) || self.touchHandler.isTouching()) firing = true;
+  if(self.keyHandler.isDown(37)) dx = -8;
+  if(self.keyHandler.isDown(39)) dx = 8;
+  if(self.touchHandler.isTouching() && self.touchHandler.touchDirectionX() < 0) dx = -4;
+  if(self.touchHandler.isTouching() && self.touchHandler.touchDirectionX() > 0) dx = 4;
+  self.turret.dx = dx;
+  var bounds = self.turret.bounds();
+  if(dx > 0 && bounds.x2 >= self.canvas.width) self.turret.dx = 0;
+  if(dx < 0 && bounds.x1 <= 0) self.turret.dx = 0;
+  self.turret.update(self.ctx);
+  if(firing) self.fire(self.turret);
+};
+
+Game.prototype.createTurret = function() {
+  var turret = new Turret(this.pubSub, this.sheet.spriteFor("turret"));
+  turret.setCoord(this.canvas.width/2, this.canvas.height - turret.h*2);
+  turret.draw(this.ctx);
+  return turret;
 };
 
 Game.prototype.fire = function(turret) {
-  if(this.ticksSinceLastFire >= 3) {
+  if(this.ticksSinceLastFire >= 6) {
     var bullet = this.createBullet(turret);
     this.bullets.push(bullet);
     this.fireAu.play();
@@ -203,10 +211,11 @@ Game.prototype.fire = function(turret) {
 
 Game.prototype.createBullet = function(turret) {
   var self = this;
-  var bullet = this.bulletPool.take(function() {
-    console.log("create bullet");
-    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
-  });
+// TODO fix problem with pool occassionally resulting in no bullet  
+//  var bullet = this.bulletPool.take(function() {
+//    return new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
+//  });
+  var bullet = new Bullet(self.pubSub, self.sheet.spriteFor("bullet"));
   bullet.setCoord(turret.x + 14, turret.y-4);
   bullet.dy = -8;
   return bullet;
@@ -227,12 +236,11 @@ Game.prototype.pruneDeadBullets = function(bullets) {
 };
 
 Game.prototype.processAliensEvent = function(payload) {
-  switch(payload.subject) {
-    case 'destroyed':
-      this.explosion6Au.play();
-      this.score += 10 + 2 * payload.row;
-      this.updateScoreView();
-      break;
+  if(payload.subject === 'destroyed') {
+    this.explosion6Au.play();
+    this.score += 10 + 2 * payload.row;
+    // TODO better if score view subscribed to score events and we emit a score event here
+    this.updateScoreView();
   }
 };
 

@@ -37,13 +37,24 @@ Game.prototype.start = function() {
   this.score = 0;
   this.gameOver = false;
   this.didWin = false;
+  this.level = 1;
+  this.levelConfig = this.configForLevel(this.level);
   this.pubSub.reset();
   this.subscribeToGameEvents(this.pubSub);
-  this.swarm = new Swarm(this.canvas, this.sheet, this.blip1Au, this.blip2Au, this.pubSub); 
+  this.swarm = new Swarm(this.levelConfig.swarmSpeed, this.canvas, this.sheet, this.blip1Au, this.blip2Au, this.pubSub); 
   this.clearCanvas();
   this.updateScoreView();
   this.turret = this.createTurret();
   this.createTicker(this.swarmUpdate, this.turretUpdate, this.bulletsUpdate);
+};
+
+Game.prototype.configForLevel = function(level) {
+  return {
+    ticksBetweenFire: 5,
+    scoreBase: 10,
+    scoreRow: 2,
+    swarmSpeed: 3
+  };
 };
 
 Game.prototype.subscribeToGameEvents = function(pubSub) {
@@ -201,7 +212,7 @@ Game.prototype.createTurret = function() {
 };
 
 Game.prototype.fire = function(turret) {
-  if(this.ticksSinceLastFire >= 6) {
+  if(this.ticksSinceLastFire >= this.levelConfig.ticksBetweenFire) {
     var bullet = this.createBullet(turret);
     this.bullets.push(bullet);
     this.fireAu.play();
@@ -238,7 +249,7 @@ Game.prototype.pruneDeadBullets = function(bullets) {
 Game.prototype.processAliensEvent = function(payload) {
   if(payload.subject === 'destroyed') {
     this.explosion6Au.play();
-    this.score += 10 + 2 * payload.row;
+    this.score += this.levelConfig.scoreBase + this.levelConfig.scoreRow * payload.row;
     // TODO better if score view subscribed to score events and we emit a score event here
     this.updateScoreView();
   }

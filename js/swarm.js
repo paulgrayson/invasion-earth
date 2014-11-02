@@ -1,11 +1,11 @@
-var Swarm = function(canvas, sheet, blip1Au, blip2Au, pubSub) {
+var Swarm = function(speed, canvas, sheet, blip1Au, blip2Au, pubSub) {
   this.canvas = canvas;
   this.sheet = sheet;
   this.pubSub = pubSub;
   this.aliens = [];
   this.bullets = [];
   this.createAliens();
-  this.dx = 3;
+  this.dx = speed;
   this.row = 0;
   this.blip1Au = blip1Au;
   this.blip2Au = blip2Au;
